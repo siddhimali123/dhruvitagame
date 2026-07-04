@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STONK BUSTER: Cyberpunk Bounty Hunter</title>
+    <meta name="description" content="A stylish, AAA-quality third-person action shooter set inside a futuristic digital stock market. Battle colorful AI trader robots and collect cash bursts!">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for Cyberpunk/Futuristic Aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js ES Modules CDN via Import Map -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body>
+    <!-- Canvas container for Three.js WebGL Rendering -->
+    <div id="game-container"></div>
+
+    <!-- UI Overlay for Vignette / Damage flash -->
+    <div id="damage-vignette" class="vignette-flash"></div>
+    <div id="slowmo-overlay" class="slowmo-active-effect"></div>
+
+    <!-- Target Crosshair -->
+    <div id="crosshair" class="hidden">
+        <div class="crosshair-dot"></div>
+        <div class="crosshair-ring"></div>
+        <div class="crosshair-lines">
+            <div class="line horizontal"></div>
+            <div class="line vertical"></div>
+        </div>
+    </div>
+
+    <!-- Cinematic Overlay for Slow-Mo -->
+    <div id="cinematic-bars" class="hidden">
+        <div class="bar top"></div>
+        <div class="bar bottom"></div>
+    </div>
+
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen" class="overlay-screen">
+        <div class="glass-panel">
+            <h1 class="logo neon-glow-green">STONK<span class="neon-glow-gold">BUSTER</span></h1>
+            <p class="subtitle">RETRIEVING LIQUIDITY SYSTEMS...</p>
+            <div class="loader-bar-container">
+                <div id="loader-bar"></div>
+            </div>
+            <div class="loader-status" id="loader-status">Initializing WebGL Scene...</div>
+        </div>
+    </div>
+
+    <!-- MAIN MENU SCREEN -->
+    <div id="main-menu" class="overlay-screen hidden">
+        <div class="glass-panel menu-panel">
+            <h1 class="logo neon-glow-green">STONK<span class="neon-glow-gold">BUSTER</span></h1>
+            <p class="tagline">MARKET LIQUIDATION UNIT // PORT 8000</p>
+            
+            <div class="menu-sections">
+                <div class="menu-controls">
+                    <h3>BOUNTY PROTOCOLS</h3>
+                    <button class="btn btn-primary" id="start-game-btn">INITIALIZE ACQUISITION</button>
+                    <button class="btn btn-secondary" id="open-controls-btn">CONTROLS & INTEL</button>
+                    <button class="btn btn-secondary" id="toggle-audio-btn">AUDIO: PROCEDURAL ON</button>
+                </div>
+            </div>
+
+            <div class="legal-ticker">
+                <p>WARNING: TRADING CONTAINS HIGH RISK. MARGIN CALL BLOCKED. AI ROBOTS ARE HOSTILE. BOUNTY REWARDS ARE TAX-FREE.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLS & INTEL MODAL -->
+    <div id="controls-modal" class="overlay-screen hidden">
+        <div class="glass-panel modal-panel">
+            <h2>SYSTEM CONFIGURATION</h2>
+            <div class="grid-controls">
+                <div class="control-item"><span>W, A, S, D</span> <span>MOVE BOUNTY HUNTER</span></div>
+                <div class="control-item"><span>MOUSE MOVEMENT</span> <span>AIM / LOOK (3RD PERSON)</span></div>
+                <div class="control-item"><span>LEFT CLICK</span> <span>EXECUTE TRADE (SHOOT)</span></div>
+                <div class="control-item"><span>SPACEBAR</span> <span>DOUBLE JUMP (VERTICAL RALLY)</span></div>
+                <div class="control-item"><span>SHIFT</span> <span>BOOST / PORTFOLIO DASH</span></div>
+                <div class="control-item"><span>Q / E or 1, 2, 3</span> <span>SWITCH WEAPON (MARGIN / SHORT / BULL)</span></div>
+                <div class="control-item"><span>R</span> <span>RELOAD WEAPON</span></div>
+                <div class="control-item"><span>RIGHT CLICK (HOLD)</span> <span>TRIGGER MARKET CRASH (SLOW-MOTION)</span></div>
+            </div>
+            <button class="btn btn-primary close-modal-btn" id="close-controls-btn">RETURN TO TERMINAL</button>
+        </div>
+    </div>
+
+    <!-- HUD OVERLAY (Visible during gameplay) -->
+    <div id="game-hud" class="hidden">
+        <!-- Top Left: Portfolio Health -->
+        <div class="hud-item hud-left">
+            <div class="hud-label">PORTFOLIO SECURITY</div>
+            <div class="health-container">
+                <div id="health-bar" style="width: 100%;"></div>
+                <div id="health-value">100%</div>
+            </div>
+            <div class="status-indicator">MARGIN STATUS: <span id="margin-status" class="text-green">SECURE</span></div>
+        </div>
+
+        <!-- Top Center: Combo & Score -->
+        <div class="hud-item hud-center">
+            <div class="score-container">
+                <span class="gold-symbol">$</span><span id="score-val">000,000</span>
+            </div>
+            <div id="combo-container" class="hidden">
+                <span id="combo-text">BULL MARKET COMBO</span> <span id="combo-val">x2</span>
+            </div>
+        </div>
+
+        <!-- Top Right: Minimap and Radar -->
+        <div class="hud-item hud-right">
+            <div class="hud-label">MARKET RADAR</div>
+            <div id="radar-container">
+                <canvas id="radar-canvas" width="100" height="100"></canvas>
+            </div>
+        </div>
+
+        <!-- Bottom Left: Weapon Stats -->
+        <div class="hud-item hud-bottom-left">
+            <div class="hud-label">ACTIVE CONTRACT</div>
+            <div id="weapon-name">MARGIN CALL BLASTER</div>
+            <div class="ammo-container">
+                <div id="ammo-count">30 / 30</div>
+                <div class="ammo-bar-bg">
+                    <div id="ammo-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Right: Abilities & Market Crash Charger -->
+        <div class="hud-item hud-bottom-right">
+            <div class="hud-label">MARKET CRASH CAPITAL</div>
+            <div class="crash-charge-container">
+                <div id="crash-charge-bar" style="width: 100%;"></div>
+                <div id="crash-charge-status">CRASH READY (RIGHT-CLICK)</div>
+            </div>
+        </div>
+
+        <!-- Bottom Center: Scrolling ticker tape -->
+        <div id="ticker-tape">
+            <div id="ticker-track" class="ticker-scroll">
+                <span>STONKS ▲ +9,999%</span>
+                <span>BEAR ▼ -87%</span>
+                <span>HODL ▲ +420%</span>
+                <span>BUY ▲ +1.2%</span>
+                <span>FOMO ▲ +8,888%</span>
+                <span>DIP ▲ +0.01%</span>
+                <span>CRASH ▼ -99%</span>
+                <span>PUMP ▲ +5,000%</span>
+                <span>LIQ ▼ -100%</span>
+                <span>BULL ▲ +1,337%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- BANKRUPTED (GAME OVER) SCREEN -->
+    <div id="game-over-screen" class="overlay-screen hidden">
+        <div class="glass-panel game-over-panel">
+            <h1 class="logo neon-glow-red">PORTFOLIO<br><span class="liquidated-text">LIQUIDATED</span></h1>
+            <p class="subtitle text-red">CHAPTER 11 BANKRUPTCY DECLARED</p>
+            
+            <div class="end-stats">
+                <div class="stat-row"><span>LIQUIDITY ACCUMULATED:</span> <span id="end-score" class="text-gold">$0</span></div>
+                <div class="stat-row"><span>AI TRADERS TERMINATED:</span> <span id="end-kills" class="text-green">0</span></div>
+                <div class="stat-row"><span>PEAK MARKET COMBO:</span> <span id="end-combo" class="text-blue">1x</span></div>
+            </div>
+            
+            <p class="funny-flavor-text" id="funny-bankrupt-text">
+                "Federal Bailout denied. Your AI brokers took the liquidity and fled to the Cayman Server Islands."
+            </p>
+
+            <button class="btn btn-primary" id="restart-game-btn">RE-INVEST (PLAY AGAIN)</button>
+            <button class="btn btn-secondary" id="exit-to-menu-btn">RETURN TO HUB</button>
+        </div>
+    </div>
+
+    <!-- VICTORY SCREEN (MARKET CORNERED) -->
+    <div id="victory-screen" class="overlay-screen hidden">
+        <div class="glass-panel victory-panel">
+            <h1 class="logo neon-glow-gold">MARKET<br><span class="cornered-text">CORNERED</span></h1>
+            <p class="subtitle text-green">ACQUISITION COMPLETED SUCCESSFULY</p>
+            
+            <div class="end-stats">
+                <div class="stat-row"><span>FINAL MARKET CAP:</span> <span id="vic-score" class="text-gold">$0</span></div>
+                <div class="stat-row"><span>AI TRADERS TERMINATED:</span> <span id="vic-kills" class="text-green">0</span></div>
+                <div class="stat-row"><span>PEAK MARKET COMBO:</span> <span id="vic-combo" class="text-blue">1x</span></div>
+            </div>
+            
+            <p class="funny-flavor-text">
+                "Congratulations! You own all active capital, and the Federal Reserve has outsourced interest rate adjustments to you."
+            </p>
+
+            <button class="btn btn-primary" id="victory-restart-game-btn">NEW FISCAL YEAR (PLAY AGAIN)</button>
+            <button class="btn btn-secondary" id="victory-exit-to-menu-btn">RETURN TO HUB</button>
+        </div>
+    </div>
+
+    <!-- Standard modules import -->
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
